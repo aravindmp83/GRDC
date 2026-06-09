@@ -1,6 +1,6 @@
 // Replace this with the URL you get after deploying your Google Apps Script as a Web App
 // Make sure to execute it as "Me" and access "Anyone"
-export const API_URL = import.meta.env.VITE_GAS_URL || "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL";
+export const API_URL = import.meta.env.VITE_GAS_URL || "https://script.google.com/macros/s/AKfycbyjUD5R-uP6Jn_OKpfomLrCtIFaq27AqfAb93Q460-ZUt4vxJZrL4aUBKhdrguXr9Zr/exec";
 
 export async function login(storeCode) {
   try {

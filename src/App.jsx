@@ -2,16 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import CMDashboard from './pages/CMDashboard';
 
 function App() {
   const [storeData, setStoreData] = useState(null);
+  const [isCM, setIsCM] = useState(false);
 
   useEffect(() => {
-    // Basic persistent session
     const savedSession = localStorage.getItem('grdc_session');
     if (savedSession) {
       try {
-        setStoreData(JSON.parse(savedSession));
+        const parsed = JSON.parse(savedSession);
+        if (parsed.isCM) {
+          setIsCM(true);
+        } else {
+          setStoreData(parsed);
+        }
       } catch (e) {
         localStorage.removeItem('grdc_session');
       }
@@ -19,12 +25,18 @@ function App() {
   }, []);
 
   const handleLoginSuccess = (data) => {
-    setStoreData(data);
-    localStorage.setItem('grdc_session', JSON.stringify(data));
+    if (data.isCM) {
+      setIsCM(true);
+      localStorage.setItem('grdc_session', JSON.stringify({ isCM: true }));
+    } else {
+      setStoreData(data);
+      localStorage.setItem('grdc_session', JSON.stringify(data));
+    }
   };
 
   const handleLogout = () => {
     setStoreData(null);
+    setIsCM(false);
     localStorage.removeItem('grdc_session');
   };
 
@@ -35,7 +47,7 @@ function App() {
           <Route 
             path="/login" 
             element={
-              storeData ? <Navigate to="/dashboard" /> : <Login onLoginSuccess={handleLoginSuccess} />
+              isCM ? <Navigate to="/cm-dashboard" /> : storeData ? <Navigate to="/dashboard" /> : <Login onLoginSuccess={handleLoginSuccess} />
             } 
           />
           <Route 
@@ -44,7 +56,13 @@ function App() {
               storeData ? <Dashboard storeData={storeData} onLogout={handleLogout} /> : <Navigate to="/login" />
             } 
           />
-          <Route path="/" element={<Navigate to={storeData ? "/dashboard" : "/login"} />} />
+          <Route 
+            path="/cm-dashboard" 
+            element={
+              isCM ? <CMDashboard onLogout={handleLogout} /> : <Navigate to="/login" />
+            } 
+          />
+          <Route path="/" element={<Navigate to={isCM ? "/cm-dashboard" : storeData ? "/dashboard" : "/login"} />} />
         </Routes>
       </div>
     </Router>

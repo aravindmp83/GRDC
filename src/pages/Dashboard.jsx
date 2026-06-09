@@ -28,6 +28,38 @@ export default function Dashboard({ storeData, onLogout }) {
     if (status === 'success' || status === 'error') setStatus('idle');
   };
 
+  const handleSaveItem = async (material) => {
+    const item = items.find(it => it['Material'] === material);
+    if (!item) return;
+
+    setStatus('saving');
+    setErrorMsg('');
+
+    const payload = [{
+      storeCode: storeData.storeCode,
+      material: item['Material'],
+      updates: {
+        'Physical Quantity': item['Physical Quantity'] || '',
+        'Defective Qty': item['Defective Qty'] || '',
+        'GRDC Qty': item['GRDC Qty'] || '',
+        'STO Number': item['STO Number'] || '',
+        'STO Date': item['STO Date'] || '',
+        'STN number': item['STN number'] || '',
+        'STN Date': item['STN Date'] || '',
+        ...globalData
+      }
+    }];
+
+    const response = await batchUpdateLineItems(payload);
+    if (response.success) {
+      setStatus('success');
+      setTimeout(() => setStatus('idle'), 3000);
+    } else {
+      setStatus('error');
+      setErrorMsg(response.error || "Failed to save item.");
+    }
+  };
+
   const handleSaveAll = async () => {
     setStatus('saving');
     setErrorMsg('');
@@ -86,8 +118,8 @@ export default function Dashboard({ storeData, onLogout }) {
     totalPhysical += parseInt(item['Physical Quantity']) || 0;
     totalDefective += parseInt(item['Defective Qty']) || 0;
     totalGRDC += parseInt(item['GRDC Qty']) || 0;
-    if (String(item['STO Number']).trim() !== '') countSTO++;
-    if (String(item['STN number']).trim() !== '') countSTN++;
+    if (item['STO Number'] && String(item['STO Number']).trim() !== '') countSTO++;
+    if (item['STN number'] && String(item['STN number']).trim() !== '') countSTN++;
   });
 
   return (
@@ -189,6 +221,7 @@ export default function Dashboard({ storeData, onLogout }) {
               key={`${item.Material}-${index}`} 
               item={item} 
               onChange={handleItemChange} 
+              onSave={() => handleSaveItem(item['Material'])}
             />
           ))}
         </div>

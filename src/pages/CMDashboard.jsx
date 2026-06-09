@@ -1,22 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Activity, Users, MapPin, Loader2, AlertCircle } from 'lucide-react';
+import { LogOut, Activity, Users, MapPin, Loader2, AlertCircle, Briefcase } from 'lucide-react';
 import { fetchCMData } from '../services/api';
 
-export default function CMDashboard({ onLogout }) {
+export default function CMDashboard({ cmName, onLogout, onAccessStore }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [cmName]);
 
   const loadData = async () => {
     setLoading(true);
     setError('');
     const response = await fetchCMData();
     if (response.success) {
-      setData(response.items || []);
+      let fetchedItems = response.items || [];
+      if (cmName && cmName !== 'All CMs') {
+        fetchedItems = fetchedItems.filter(item => item['CM'] === cmName);
+      }
+      setData(fetchedItems);
     } else {
       setError(response.error || "Failed to load data.");
     }
@@ -58,13 +62,15 @@ export default function CMDashboard({ onLogout }) {
   let noOfSTN = 0;
 
   const stateData = {};
+  const storeSummaryData = {};
+  const cmSummaryData = {};
 
   data.forEach(item => {
     const soh = parseInt(item['SOH']) || 0;
     const grdc = parseInt(item['GRDC Qty']) || 0;
     const def = parseInt(item['Defective Qty']) || 0;
-    const hasSTO = !!String(item['STO Number']).trim();
-    const hasSTN = !!String(item['STN number']).trim();
+    const hasSTO = item['STO Number'] && String(item['STO Number']).trim() !== '';
+    const hasSTN = item['STN number'] && String(item['STN number']).trim() !== '';
 
     totalSOH += soh;
     totalGRDC += grdc;
@@ -72,24 +78,40 @@ export default function CMDashboard({ onLogout }) {
     if (hasSTO) noOfSTO++;
     if (hasSTN) noOfSTN++;
 
+    // CM Summary
+    const cm = item['CM'] || 'Unassigned';
+    if (!cmSummaryData[cm]) {
+      cmSummaryData[cm] = { stores: new Set(), soh: 0, grdc: 0, defective: 0, sto: 0, stn: 0 };
+    }
+    cmSummaryData[cm].stores.add(item['Store_Code']);
+    cmSummaryData[cm].soh += soh;
+    cmSummaryData[cm].grdc += grdc;
+    cmSummaryData[cm].defective += def;
+    if (hasSTO) cmSummaryData[cm].sto++;
+    if (hasSTN) cmSummaryData[cm].stn++;
+
+    // State aggregation
     const state = item['State'] || 'Unknown';
     if (!stateData[state]) {
-      stateData[state] = {
-        stores: new Set(),
-        soh: 0,
-        grdc: 0,
-        defective: 0,
-        sto: 0,
-        stn: 0
-      };
+      stateData[state] = { stores: new Set(), soh: 0, grdc: 0, defective: 0, sto: 0, stn: 0 };
     }
-    
     stateData[state].stores.add(item['Store_Code']);
     stateData[state].soh += soh;
     stateData[state].grdc += grdc;
     stateData[state].defective += def;
     if (hasSTO) stateData[state].sto++;
     if (hasSTN) stateData[state].stn++;
+
+    // Store aggregation
+    const storeCode = item['Store_Code'];
+    if (!storeSummaryData[storeCode]) {
+      storeSummaryData[storeCode] = { name: item['Store_Name'] || 'Unknown', soh: 0, grdc: 0, defective: 0, sto: 0, stn: 0 };
+    }
+    storeSummaryData[storeCode].soh += soh;
+    storeSummaryData[storeCode].grdc += grdc;
+    storeSummaryData[storeCode].defective += def;
+    if (hasSTO) storeSummaryData[storeCode].sto++;
+    if (hasSTN) storeSummaryData[storeCode].stn++;
   });
 
   return (
@@ -104,7 +126,7 @@ export default function CMDashboard({ onLogout }) {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-slate-800 leading-tight">CM Dashboard</h1>
-                <p className="text-xs text-slate-500 font-medium">Regional Summary View</p>
+                <p className="text-xs text-slate-500 font-medium">Cluster Manager View {cmName && cmName !== 'All CMs' ? `- ${cmName}` : ''}</p>
               </div>
             </div>
             <div className="flex items-center">
@@ -138,6 +160,50 @@ export default function CMDashboard({ onLogout }) {
           </div>
         </div>
 
+        {/* CM View (Only for All CMs) */}
+        {cmName === 'All CMs' && (
+        <div className="mt-12">
+          <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center">
+            <Briefcase className="w-5 h-5 mr-2 text-brand-600" />
+            Cluster Manager View
+          </h2>
+          
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
+                  <tr>
+                    <th className="px-6 py-4">Cluster Manager</th>
+                    <th className="px-6 py-4">Stores</th>
+                    <th className="px-6 py-4">SOH</th>
+                    <th className="px-6 py-4">GRDC Qty</th>
+                    <th className="px-6 py-4">Defective</th>
+                    <th className="px-6 py-4">STO Raised</th>
+                    <th className="px-6 py-4">STN Done</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {Object.keys(cmSummaryData).sort().map(cm => {
+                    const sd = cmSummaryData[cm];
+                    return (
+                      <tr key={cm} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-slate-800">{cm}</td>
+                        <td className="px-6 py-4">{sd.stores.size}</td>
+                        <td className="px-6 py-4">{sd.soh}</td>
+                        <td className="px-6 py-4">{sd.grdc}</td>
+                        <td className="px-6 py-4">{sd.defective}</td>
+                        <td className="px-6 py-4">{sd.sto}</td>
+                        <td className="px-6 py-4">{sd.stn}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        )}
+
         {/* State View */}
         <div className="mt-12">
           <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center">
@@ -166,6 +232,59 @@ export default function CMDashboard({ onLogout }) {
                       <tr key={state} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 font-medium text-slate-800">{state}</td>
                         <td className="px-6 py-4">{sd.stores.size}</td>
+                        <td className="px-6 py-4">{sd.soh}</td>
+                        <td className="px-6 py-4">{sd.grdc}</td>
+                        <td className="px-6 py-4">{sd.defective}</td>
+                        <td className="px-6 py-4">{sd.sto}</td>
+                        <td className="px-6 py-4">{sd.stn}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Store View */}
+        <div className="mt-12">
+          <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center">
+            <Users className="w-5 h-5 mr-2 text-brand-600" />
+            Store View <span className="text-sm font-normal text-slate-500 ml-2">(Click a store to open it)</span>
+          </h2>
+          
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
+                  <tr>
+                    <th className="px-6 py-4">Store Code</th>
+                    <th className="px-6 py-4">Store Name</th>
+                    <th className="px-6 py-4">SOH</th>
+                    <th className="px-6 py-4">GRDC Qty</th>
+                    <th className="px-6 py-4">Defective</th>
+                    <th className="px-6 py-4">STO Raised</th>
+                    <th className="px-6 py-4">STN Done</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {Object.keys(storeSummaryData).sort().map(code => {
+                    const sd = storeSummaryData[code];
+                    return (
+                      <tr 
+                         key={code} 
+                         className="hover:bg-brand-50 transition-colors cursor-pointer group"
+                         onClick={() => {
+                            const storeItems = data.filter(it => it['Store_Code'] == code);
+                            onAccessStore({
+                               storeCode: code,
+                               storeName: sd.name,
+                               items: storeItems
+                            });
+                         }}
+                      >
+                        <td className="px-6 py-4 font-medium text-brand-600 group-hover:text-brand-700 underline decoration-brand-200 underline-offset-2">{code}</td>
+                        <td className="px-6 py-4 font-medium text-slate-800 group-hover:text-brand-800">{sd.name}</td>
                         <td className="px-6 py-4">{sd.soh}</td>
                         <td className="px-6 py-4">{sd.grdc}</td>
                         <td className="px-6 py-4">{sd.defective}</td>

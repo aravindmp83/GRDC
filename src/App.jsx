@@ -7,6 +7,7 @@ import CMDashboard from './pages/CMDashboard';
 function App() {
   const [storeData, setStoreData] = useState(null);
   const [isCM, setIsCM] = useState(false);
+  const [cmName, setCmName] = useState('');
 
   useEffect(() => {
     const savedSession = localStorage.getItem('grdc_session');
@@ -15,6 +16,7 @@ function App() {
         const parsed = JSON.parse(savedSession);
         if (parsed.isCM) {
           setIsCM(true);
+          setCmName(parsed.cmName || '');
         } else {
           setStoreData(parsed);
         }
@@ -27,16 +29,24 @@ function App() {
   const handleLoginSuccess = (data) => {
     if (data.isCM) {
       setIsCM(true);
-      localStorage.setItem('grdc_session', JSON.stringify({ isCM: true }));
+      setCmName(data.cmName || '');
+      localStorage.setItem('grdc_session', JSON.stringify({ isCM: true, cmName: data.cmName || '' }));
     } else {
       setStoreData(data);
       localStorage.setItem('grdc_session', JSON.stringify(data));
     }
   };
 
+  const handleAccessStore = (data) => {
+    setIsCM(false);
+    setStoreData(data);
+    localStorage.setItem('grdc_session', JSON.stringify(data));
+  };
+
   const handleLogout = () => {
     setStoreData(null);
     setIsCM(false);
+    setCmName('');
     localStorage.removeItem('grdc_session');
   };
 
@@ -59,7 +69,7 @@ function App() {
           <Route 
             path="/cm-dashboard" 
             element={
-              isCM ? <CMDashboard onLogout={handleLogout} /> : <Navigate to="/login" />
+              isCM ? <CMDashboard cmName={cmName} onLogout={handleLogout} onAccessStore={handleAccessStore} /> : <Navigate to="/login" />
             } 
           />
           <Route path="/" element={<Navigate to={isCM ? "/cm-dashboard" : storeData ? "/dashboard" : "/login"} />} />

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PackageOpen, Loader2, ArrowRight, ShieldCheck, Users } from 'lucide-react';
-import { login } from '../services/api';
+import { login, fetchCMData } from '../services/api';
 
 export default function Login({ onLoginSuccess }) {
   const [activeTab, setActiveTab] = useState('store'); // 'store' or 'cm'
@@ -9,6 +9,32 @@ export default function Login({ onLoginSuccess }) {
   const [cmCode, setCmCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const [cmList, setCmList] = useState([]);
+  const [cmLoading, setCmLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'cm' && cmList.length === 0) {
+      loadCMList();
+    }
+  }, [activeTab]);
+
+  const loadCMList = async () => {
+    setCmLoading(true);
+    try {
+      const response = await fetchCMData();
+      if (response.success && response.items) {
+        const uniqueCMs = Array.from(new Set(response.items.map(item => item['CM']).filter(Boolean))).sort();
+        setCmList(uniqueCMs);
+      } else {
+        setError("Failed to fetch CM list.");
+      }
+    } catch (err) {
+      setError("Network error fetching CM list.");
+    } finally {
+      setCmLoading(false);
+    }
+  };
 
   const handleStoreSubmit = async (e) => {
     e.preventDefault();
@@ -46,11 +72,10 @@ export default function Login({ onLoginSuccess }) {
 
   const handleCMSubmit = (e) => {
     e.preventDefault();
-    // Simple basic check for CM
-    if (cmCode.trim().toLowerCase() === 'admin' || cmCode.trim() !== '') {
-      onLoginSuccess({ isCM: true });
+    if (cmCode.trim() !== '') {
+      onLoginSuccess({ isCM: true, cmName: cmCode.trim() });
     } else {
-      setError("Please enter a valid CM Code.");
+      setError("Please select a Category Manager.");
     }
   };
 
@@ -144,17 +169,25 @@ export default function Login({ onLoginSuccess }) {
           <form onSubmit={handleCMSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5" htmlFor="cmCode">
-                Access Code
+                Select Cluster Manager
               </label>
-              <input
-                id="cmCode"
-                type="password"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
-                placeholder="Enter CM code (e.g. admin)"
-                value={cmCode}
-                onChange={(e) => setCmCode(e.target.value)}
-                required
-              />
+              {cmLoading ? (
+                 <div className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 text-slate-500 flex items-center">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2"/> Loading CM list...
+                 </div>
+              ) : (
+                <select
+                  id="cmCode"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                  value={cmCode}
+                  onChange={(e) => setCmCode(e.target.value)}
+                  required
+                >
+                  <option value="">-- Select Cluster Manager --</option>
+                  <option value="All CMs">View All (All CMs)</option>
+                  {cmList.map(cm => <option key={cm} value={cm}>{cm}</option>)}
+                </select>
+              )}
             </div>
             <button
               type="submit"

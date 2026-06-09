@@ -1,7 +1,7 @@
 import React from 'react';
 import { Package } from 'lucide-react';
 
-export default function LineItemCard({ item, onChange }) {
+export default function LineItemCard({ item, onChange, onSave }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     onChange(item['Material'], name, value);
@@ -41,6 +41,12 @@ export default function LineItemCard({ item, onChange }) {
         <InputField label="STO Date" name="STO Date" value={item['STO Date'] || ''} onChange={handleChange} type="date" />
         <InputField label="STN Number" name="STN number" value={item['STN number'] || ''} onChange={handleChange} />
         <InputField label="STN Date" name="STN Date" value={item['STN Date'] || ''} onChange={handleChange} type="date" />
+      </div>
+
+      <div className="p-3 bg-slate-50 border-t border-slate-100 flex justify-end">
+         <button onClick={onSave} className="px-5 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors shadow-sm">
+            Save Item
+         </button>
       </div>
     </div>
   );

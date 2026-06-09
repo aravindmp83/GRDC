@@ -1,19 +1,23 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  body {
-    @apply bg-slate-50 text-slate-900 antialiased;
-  }
+@theme {
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-900: #134e4a;
 }
 
-/* Custom animations & glassmorphism utilities for a premium look */
-@layer utilities {
-  .glass {
-    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
-  }
-  .glass-dark {
-    @apply bg-slate-900/80 backdrop-blur-md border border-slate-700/50 shadow-xl text-white;
-  }
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+@utility glass {
+  @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
+}
+
+@utility glass-dark {
+  @apply bg-slate-900/80 backdrop-blur-md border border-slate-700/50 shadow-xl text-white;
 }
